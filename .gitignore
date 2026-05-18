@@ -1,0 +1,23 @@
+# Environment
+.env
+.env.*
+
+# Uploads (user-generated content)
+public/uploads/
+
+# Install lock (generated per deployment)
+install/install.lock
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temp / cache
+*.cache
+/tmp/

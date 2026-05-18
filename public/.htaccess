@@ -1,0 +1,27 @@
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# API路由 - api/ 已移至 public/ 下，直接路由到 api/index.php
+RewriteRule ^api/(.*)$ api/index.php [QSA,L]
+
+# 后台管理路由
+RewriteRule ^admin$ admin.php [QSA,L]
+RewriteRule ^admin/(.*)$ admin.php?page=$1 [QSA,L]
+
+# 安装路由
+RewriteRule ^install$ install.php [QSA,L]
+
+# 前台页面路由
+RewriteRule ^product/([0-9]+)$ product.php?id=$1 [QSA,L]
+RewriteRule ^cart$ cart.php [QSA,L]
+RewriteRule ^checkout$ checkout.php [QSA,L]
+RewriteRule ^cashier$ cashier.php [QSA,L]
+RewriteRule ^pay-result$ pay-result.php [QSA,L]
+RewriteRule ^user$ user.php [QSA,L]
+RewriteRule ^user-products$ user-products.php [QSA,L]
+RewriteRule ^user-orders$ user-orders.php [QSA,L]
+RewriteRule ^user-withdrawals$ user-withdrawals.php [QSA,L]
+
+# 禁止直接访问敏感文件（config和payments目录在public外面，Nginx无法直接访问）
+RewriteRule ^(config|payments)/ - [F,L]

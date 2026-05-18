@@ -143,7 +143,7 @@
 
     <script>
         if (localStorage.getItem('admin_token')) {
-            window.location.href = '/admin.php?page=dashboard';
+            window.location.href = '/admin/dashboard';
         }
 
         function showError(msg) {
@@ -184,7 +184,7 @@
                         avatar: data.data.avatar,
                         role: data.data.role
                     }));
-                    window.location.href = '/admin.php?page=dashboard';
+                    window.location.href = '/admin/dashboard';
                 } else {
                     showError(data.msg || '登录失败');
                 }

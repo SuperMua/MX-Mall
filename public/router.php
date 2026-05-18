@@ -36,6 +36,7 @@ if ($uri === '/install') {
 
 // Frontend page routes: [regex, file, param_map]
 $pageRoutes = [
+    ['#^/$#',                            'index.php',             []],
     ['#^/product/(\d+)$#',            'product.php',           ['id' => 1]],
     ['#^/cart$#',                      'cart.php',              []],
     ['#^/checkout$#',                  'checkout.php',          []],

@@ -28,7 +28,7 @@ const Admin = {
     async request(url, options = {}) {
         const token = localStorage.getItem('admin_token');
         if (!token) {
-            window.location.href = '/admin.php?page=login';
+            window.location.href = '/admin/login';
             return null;
         }
 
@@ -63,7 +63,7 @@ const Admin = {
 
             if (response.status === 401) {
                 localStorage.removeItem('admin_token');
-                window.location.href = '/admin.php?page=login';
+                window.location.href = '/admin/login';
                 return null;
             }
 
@@ -104,7 +104,7 @@ const Admin = {
         var title = document.getElementById('pageTitle');
 
         // Update URL
-        history.replaceState(null, '', '/admin.php?page=' + module);
+        history.replaceState(null, '', '/admin/' + module);
 
         if (!content) return;
 
@@ -148,7 +148,7 @@ const Admin = {
         }, 180);
 
         try {
-            var response = await fetch('/admin.php?page=' + module, {
+            var response = await fetch('/admin/' + module, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
             if (!response.ok) throw new Error('Module not found');
@@ -487,7 +487,7 @@ const Admin = {
     // ============ Logout ============
     logout() {
         localStorage.removeItem('admin_token');
-        window.location.href = '/admin.php?page=login';
+        window.location.href = '/admin/login';
     }
 };
 

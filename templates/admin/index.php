@@ -144,7 +144,7 @@
     <script>
         // Auth check
         if (!localStorage.getItem('admin_token')) {
-            window.location.href = '/admin.php?page=login';
+            window.location.href = '/admin/login';
         }
 
         // Init sidebar user info
@@ -263,7 +263,7 @@
                     closePasswordModal();
                     setTimeout(function() {
                         localStorage.removeItem('admin_token');
-                        window.location.href = '/admin.php?page=login';
+                        window.location.href = '/admin/login';
                     }, 1500);
                 } else {
                     Admin.toast(res?.msg || '修改失败', 'error');

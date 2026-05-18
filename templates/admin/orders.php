@@ -14,6 +14,9 @@
         </div>
     </div>
     <div class="toolbar-right">
+        <button class="btn btn-secondary btn-sm" onclick="Admin.exportCsv('/orders/export?status=' + ordersFilter + '&search=' + encodeURIComponent(ordersSearch), 'orders.csv')">
+            <i class="bi bi-download"></i> 导出CSV
+        </button>
         <button class="btn btn-danger" onclick="cleanExpiredOrders()">
             <i class="bi bi-trash"></i> 清理过期订单
         </button>
@@ -113,6 +116,7 @@ function renderOrders() {
             <td style="font-size:12px;color:var(--text-secondary);">${Admin.formatDate(o.created_at)}</td>
             <td>
                 <button class="btn btn-secondary btn-sm btn-icon" onclick="viewOrder(${o.id})" title="查看详情"><i class="bi bi-eye"></i></button>
+                ${o.status == 1 ? '<button class="btn btn-danger btn-sm btn-icon" onclick="refundOrder(' + o.id + ')" title="退款" style="margin-left:4px;"><i class="bi bi-arrow-counterclockwise"></i></button>' : ''}
             </td>
         </tr>
     `).join('');
@@ -222,6 +226,19 @@ async function updateOrderStatus() {
         Admin.closeModal('orderDetailModal');
     } else {
         Admin.toast(res.msg || '更新失败', 'error');
+    }
+}
+
+async function refundOrder(id) {
+    const confirmed = await Admin.confirm('订单退款', '确定要对该订单执行退款吗？退款将原路返回。');
+    if (!confirmed) return;
+
+    const result = await Admin.post('/orders/refund', { order_id: id });
+    if (result && result.code === 0) {
+        Admin.toast('退款成功', 'success');
+        await loadOrders();
+    } else {
+        Admin.toast(result?.msg || '退款失败', 'error');
     }
 }
 

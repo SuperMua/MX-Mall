@@ -17,12 +17,15 @@ class SiteController extends BaseController
     {
         $db = DB::getInstance();
         $rows = $db->getAll(
-            "SELECT config_key, config_value FROM system_config WHERE config_key IN ('site_name', 'site_subtitle', 'site_banner_1', 'site_banner_2', 'site_banner_3')"
+            "SELECT config_key, config_value FROM system_config WHERE config_key IN ('site_name', 'site_subtitle', 'banner_images', 'banner_links')"
         );
         $config = [];
         foreach ($rows as $row) {
             $config[$row['config_key']] = $row['config_value'];
         }
+        // Default empty arrays for banner data
+        if (!isset($config['banner_images'])) $config['banner_images'] = '[]';
+        if (!isset($config['banner_links'])) $config['banner_links'] = '[]';
         $this->jsonSuccess($config);
     }
 }

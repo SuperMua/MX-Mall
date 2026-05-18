@@ -272,6 +272,16 @@ if ($method === 'DELETE' && preg_match('#^/api/admin/products/(\d+)$#', $path, $
     (new AdminController())->deleteProduct();
 }
 
+// POST /api/admin/products/batch-delete
+if ($method === 'POST' && $path === '/api/admin/products/batch-delete') {
+    (new AdminController())->batchDeleteProducts();
+}
+
+// POST /api/admin/products/batch-status
+if ($method === 'POST' && $path === '/api/admin/products/batch-status') {
+    (new AdminController())->batchUpdateProductStatus();
+}
+
 // GET /api/admin/orders
 if ($method === 'GET' && $path === '/api/admin/orders') {
     (new AdminController())->orders();
@@ -357,6 +367,11 @@ if ($method === 'POST' && $path === '/api/admin/adjust-balance') {
     (new AdminController())->adjustBalance();
 }
 
+// POST /api/admin/orders/refund
+if ($method === 'POST' && $path === '/api/admin/orders/refund') {
+    (new AdminController())->refundOrder();
+}
+
 // POST /api/admin/clean-orders or POST /api/orders/clean
 if (($method === 'POST' && $path === '/api/admin/clean-orders') || ($method === 'POST' && $path === '/api/orders/clean')) {
     (new AdminController())->cleanExpiredOrders();
@@ -365,6 +380,26 @@ if (($method === 'POST' && $path === '/api/admin/clean-orders') || ($method === 
 // POST /api/admin/password
 if ($method === 'POST' && $path === '/api/admin/password') {
     (new AdminController())->changePassword();
+}
+
+// GET /api/admin/orders/export
+if ($method === 'GET' && $path === '/api/admin/orders/export') {
+    (new AdminController())->exportOrders();
+}
+
+// GET /api/admin/products/export
+if ($method === 'GET' && $path === '/api/admin/products/export') {
+    (new AdminController())->exportProducts();
+}
+
+// GET /api/admin/users/export
+if ($method === 'GET' && $path === '/api/admin/users/export') {
+    (new AdminController())->exportUsers();
+}
+
+// GET /api/admin/withdrawals/export
+if ($method === 'GET' && $path === '/api/admin/withdrawals/export') {
+    (new AdminController())->exportWithdrawals();
 }
 
 // ===== 404 Handler =====

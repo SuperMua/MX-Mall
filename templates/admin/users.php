@@ -3,7 +3,10 @@
     <div class="toolbar-left">
         <span style="color:var(--text-secondary);font-size:13px;">用户列表</span>
     </div>
-    <div class="toolbar-right">
+    <div class="toolbar-right" style="display:flex;align-items:center;gap:8px;">
+        <button class="btn btn-secondary btn-sm" onclick="Admin.exportCsv('/users/export?search=' + encodeURIComponent(usersSearch), 'users.csv')">
+            <i class="bi bi-download"></i> 导出CSV
+        </button>
         <div class="search-box">
             <i class="bi bi-search"></i>
             <input type="text" class="form-control" id="userSearch" placeholder="搜索用户昵称/用户名..." onkeyup="searchUsers()">

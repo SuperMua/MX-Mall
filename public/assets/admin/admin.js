@@ -456,6 +456,34 @@ const Admin = {
         return map[status] || map[String(status)] || `<span class="badge badge-muted">${status}</span>`;
     },
 
+    // ============ CSV Export ============
+    async exportCsv(url, filename) {
+        try {
+            const token = localStorage.getItem('admin_token');
+            const response = await fetch(this.apiBase + url, {
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            if (!response.ok) {
+                this.toast('导出失败', 'error');
+                return;
+            }
+            const blob = await response.blob();
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(a.href);
+            this.toast('导出成功', 'success');
+        } catch (e) {
+            this.toast('导出失败: ' + e.message, 'error');
+        }
+    },
+
     // ============ Logout ============
     logout() {
         localStorage.removeItem('admin_token');

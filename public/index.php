@@ -185,6 +185,15 @@ if (!file_exists($lockFile)) {
                 }
                 // 缓存配置到localStorage（下次刷新时立即使用）
                 localStorage.setItem('site_config_cache', JSON.stringify(config));
+
+                // Load banners from config
+                try {
+                    var banners = JSON.parse(config.banner_images || '[]');
+                    if (banners.length > 0) {
+                        var links = JSON.parse(config.banner_links || '[]');
+                        renderCarousel(banners, links);
+                    }
+                } catch(e2) {}
             }
         } catch(e) {}
     }
@@ -193,7 +202,7 @@ if (!file_exists($lockFile)) {
     let carouselIndex = 0;
     let carouselTimer = null;
 
-    function renderCarousel(banners) {
+    function renderCarousel(banners, links) {
         const defaultBanner = document.getElementById('default-banner');
         const carouselSection = document.getElementById('carousel-section');
         const slidesContainer = document.getElementById('carousel-slides');
@@ -206,9 +215,14 @@ if (!file_exists($lockFile)) {
         carouselSection.style.display = 'block';
 
         // Render slides
-        slidesContainer.innerHTML = banners.map(url =>
-            `<div style="flex-shrink:0;width:100%;"><img src="${url}" style="width:100%;height:180px;object-fit:cover;border-radius:var(--radius-md);display:block;" onerror="this.parentElement.parentElement.parentElement.style.display='none';document.getElementById('default-banner').style.display='';"></div>`
-        ).join('');
+        slidesContainer.innerHTML = banners.map(function(url, i) {
+            var link = (links && links[i]) ? links[i] : '';
+            var imgHtml = '<img src="' + url + '" style="width:100%;height:180px;object-fit:cover;border-radius:var(--radius-md);display:block;" onerror="this.parentElement.parentElement.parentElement.style.display=\'none\';document.getElementById(\'default-banner\').style.display=\'\';">';
+            if (link) {
+                return '<div style="flex-shrink:0;width:100%;"><a href="' + link + '" target="_blank" rel="noopener">' + imgHtml + '</a></div>';
+            }
+            return '<div style="flex-shrink:0;width:100%;">' + imgHtml + '</div>';
+        }).join('');
 
         // Render dots
         dotsContainer.innerHTML = banners.map((_, i) =>

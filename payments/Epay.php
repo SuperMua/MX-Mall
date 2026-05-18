@@ -77,6 +77,29 @@ class Epay {
         return $arr;
     }
 
+    /**
+     * 退款
+     * @return array ['success' => bool, 'msg' => string]
+     */
+    public function refund($trade_no, $money = null) {
+        $param = [
+            'pid'     => $this->pid,
+            'key'     => $this->key,
+            'trade_no'=> $trade_no,
+        ];
+        if ($money !== null && $money > 0) {
+            $param['money'] = $money;
+        }
+        $url = $this->api_url . '?act=refund';
+        $response = $this->getHttpResponse($url, http_build_query($param));
+        $arr = json_decode($response, true);
+
+        if ($arr && isset($arr['code']) && $arr['code'] == 1) {
+            return ['success' => true, 'msg' => $arr['msg'] ?? '退款成功'];
+        }
+        return ['success' => false, 'msg' => $arr['msg'] ?? ($arr['error'] ?? '退款请求失败')];
+    }
+
     // ===== 私有方法 =====
 
     private function buildRequestParam($param) {

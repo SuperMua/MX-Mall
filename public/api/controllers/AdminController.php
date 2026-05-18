@@ -351,6 +351,66 @@ class AdminController extends BaseController
     }
 
     /**
+     * 批量删除商品
+     * POST /api/admin/products/batch-delete
+     * 参数: ids (int数组)
+     */
+    public function batchDeleteProducts(): void
+    {
+        $ids = $this->input('ids', []);
+        if (!is_array($ids) || empty($ids)) {
+            $this->jsonError('请选择要删除的商品');
+        }
+
+        $ids = array_map('intval', $ids);
+        $ids = array_filter($ids, function ($v) { return $v > 0; });
+
+        if (empty($ids)) {
+            $this->jsonError('没有有效的商品ID');
+        }
+
+        $db = DB::getInstance();
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $deleted = $db->delete('products', "id IN ({$placeholders})", $ids);
+
+        $this->jsonSuccess(['deleted' => $deleted], "已删除 {$deleted} 件商品");
+    }
+
+    /**
+     * 批量更新商品状态
+     * POST /api/admin/products/batch-status
+     * 参数: ids (int数组), status (0或1)
+     */
+    public function batchUpdateProductStatus(): void
+    {
+        $ids = $this->input('ids', []);
+        $status = (int)$this->input('status', 0);
+
+        if (!is_array($ids) || empty($ids)) {
+            $this->jsonError('请选择商品');
+        }
+
+        $ids = array_map('intval', $ids);
+        $ids = array_filter($ids, function ($v) { return $v > 0; });
+
+        if (empty($ids)) {
+            $this->jsonError('没有有效的商品ID');
+        }
+
+        if (!in_array($status, [0, 1])) {
+            $this->jsonError('状态值无效');
+        }
+
+        $db = DB::getInstance();
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $params = array_merge([$status], $ids);
+        $affected = $db->query("UPDATE `products` SET `status` = ? WHERE `id` IN ({$placeholders})", $params)->rowCount();
+
+        $actionText = $status === 1 ? '上架' : '下架';
+        $this->jsonSuccess(['affected' => $affected], "已批量{$actionText} {$affected} 件商品");
+    }
+
+    /**
      * 删除商品
      * DELETE /api/admin/products/{id}
      */
@@ -996,6 +1056,55 @@ class AdminController extends BaseController
     }
 
     /**
+     * 订单退款
+     * POST /api/admin/orders/refund
+     * 参数: order_id
+     */
+    public function refundOrder(): void
+    {
+        $orderId = (int)($this->input('order_id', 0));
+
+        if ($orderId <= 0) {
+            $this->jsonError('订单ID无效');
+        }
+
+        $db = DB::getInstance();
+        $order = $db->getRow("SELECT * FROM `orders` WHERE id = ?", [$orderId]);
+
+        if (!$order) {
+            $this->jsonError('订单不存在');
+        }
+
+        if ($order['status'] != 1) {
+            $this->jsonError('仅已支付订单可退款');
+        }
+
+        // 获取支付配置
+        $configRows = $db->getAll("SELECT config_key, config_value FROM `system_config` WHERE config_group LIKE 'pay_%' OR config_key = 'pay_channel'");
+        $payConfig = [];
+        foreach ($configRows as $row) {
+            $payConfig[$row['config_key']] = $row['config_value'];
+        }
+
+        // 使用 PayFactory 创建支付实例并退款
+        require_once ROOT_PATH . '/payments/PayFactory.php';
+        $pay = \NexusMall\Payments\PayFactory::create($order['pay_type'], $payConfig);
+
+        if (!$pay || !method_exists($pay, 'refund')) {
+            $this->jsonError('该支付渠道不支持退款');
+        }
+
+        $result = $pay->refund($order['out_trade_no'], $order['money']);
+
+        if ($result['success']) {
+            $db->update('orders', ['status' => 2], 'id = ?', [$orderId]);
+            $this->jsonSuccess(null, '退款成功');
+        } else {
+            $this->jsonError($result['msg']);
+        }
+    }
+
+    /**
      * 清理过期订单
      * POST /api/orders/clean
      * 删除所有状态为已过期(status=3)的订单
@@ -1005,6 +1114,175 @@ class AdminController extends BaseController
         $db = DB::getInstance();
         $deleted = $db->delete('orders', 'status = 3');
         $this->jsonSuccess(['deleted' => $deleted]);
+    }
+
+    // ============ CSV Export Helpers ============
+
+    private function exportCsv(array $headers, array $rows, string $filename): void
+    {
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        echo "\xEF\xBB\xBF"; // UTF-8 BOM
+
+        $fp = fopen('php://output', 'w');
+        fputcsv($fp, $headers);
+
+        foreach ($rows as $row) {
+            fputcsv($fp, $row);
+        }
+
+        fclose($fp);
+        exit;
+    }
+
+    public function exportOrders(): void
+    {
+        $db = DB::getInstance();
+
+        $status = $this->input('status');
+        $keyword = trim($this->input('keyword', ''));
+        $payType = $this->input('pay_type');
+
+        $where = '1=1';
+        $params = [];
+
+        if ($status !== null && $status !== '') {
+            $statusMap = ['unpaid' => 0, 'paid' => 1, 'refunded' => 2, 'expired' => 3];
+            $s = isset($statusMap[$status]) ? $statusMap[$status] : (int)$status;
+            $where .= ' AND o.status = ?';
+            $params[] = $s;
+        }
+        if (!empty($keyword)) {
+            $where .= ' AND (o.out_trade_no LIKE ? OR o.product_name LIKE ? OR o.trade_no LIKE ?)';
+            $params[] = "%{$keyword}%";
+            $params[] = "%{$keyword}%";
+            $params[] = "%{$keyword}%";
+        }
+        if (!empty($payType)) {
+            $where .= ' AND o.pay_type = ?';
+            $params[] = $payType;
+        }
+
+        $rows = $db->getAll(
+            "SELECT o.out_trade_no, o.product_name, o.money, o.cashier_tpl,
+                    CASE o.status WHEN 0 THEN '待支付' WHEN 1 THEN '已支付' WHEN 2 THEN '已退款' WHEN 3 THEN '已过期' ELSE '未知' END AS status_text,
+                    o.pay_type, o.created_at, u.nickname AS user_nickname
+             FROM `orders` o LEFT JOIN `users` u ON o.user_id = u.id
+             WHERE {$where} ORDER BY o.id DESC",
+            $params
+        );
+
+        $this->exportCsv(
+            ['订单号', '商品名', '金额', '模板', '状态', '支付方式', '创建时间', '用户'],
+            $rows,
+            'orders_' . date('YmdHis') . '.csv'
+        );
+    }
+
+    public function exportProducts(): void
+    {
+        $db = DB::getInstance();
+
+        $keyword = trim($this->input('keyword', ''));
+        $categoryId = (int)$this->input('category_id', 0);
+        $status = $this->input('status');
+
+        $where = '1=1';
+        $params = [];
+        if (!empty($keyword)) {
+            $where .= ' AND p.name LIKE ?';
+            $params[] = "%{$keyword}%";
+        }
+        if ($categoryId > 0) {
+            $where .= ' AND p.category_id = ?';
+            $params[] = $categoryId;
+        }
+        if ($status !== null && $status !== '') {
+            $where .= ' AND p.status = ?';
+            $params[] = (int)$status;
+        }
+
+        $rows = $db->getAll(
+            "SELECT p.id, p.name, p.price, c.name AS category_name,
+                    CASE p.status WHEN 1 THEN '上架' ELSE '下架' END AS status_text,
+                    p.sales_count, p.created_at
+             FROM `products` p LEFT JOIN `categories` c ON p.category_id = c.id
+             WHERE {$where} ORDER BY p.sort_order ASC, p.id DESC",
+            $params
+        );
+
+        $this->exportCsv(
+            ['ID', '名称', '价格', '分类', '状态', '销量', '创建时间'],
+            $rows,
+            'products_' . date('YmdHis') . '.csv'
+        );
+    }
+
+    public function exportUsers(): void
+    {
+        $db = DB::getInstance();
+
+        $keyword = trim($this->input('keyword', ''));
+        $where = '1=1';
+        $params = [];
+        if (!empty($keyword)) {
+            $where .= ' AND (u.nickname LIKE ? OR u.phone LIKE ? OR u.username LIKE ?)';
+            $params[] = "%{$keyword}%";
+            $params[] = "%{$keyword}%";
+            $params[] = "%{$keyword}%";
+        }
+
+        $rows = $db->getAll(
+            "SELECT u.id, u.username, u.nickname, u.phone, u.balance,
+                    CASE u.review_status WHEN 0 THEN '待审核' WHEN 1 THEN '已通过' WHEN 2 THEN '已拒绝' ELSE '未知' END AS review_status_text,
+                    CASE u.status WHEN 1 THEN '启用' ELSE '禁用' END AS status_text,
+                    g.name AS group_name, u.created_at
+             FROM `users` u LEFT JOIN `user_groups` g ON u.group_id = g.id
+             WHERE {$where} ORDER BY u.id DESC",
+            $params
+        );
+
+        $this->exportCsv(
+            ['ID', '用户名', '昵称', '手机号', '余额', '审核状态', '账号状态', '分组', '注册时间'],
+            $rows,
+            'users_' . date('YmdHis') . '.csv'
+        );
+    }
+
+    public function exportWithdrawals(): void
+    {
+        $db = DB::getInstance();
+
+        $status = $this->input('status');
+        $keyword = trim($this->input('keyword', ''));
+        $where = '1=1';
+        $params = [];
+
+        if ($status !== null && $status !== '') {
+            $where .= ' AND w.status = ?';
+            $params[] = (int)$status;
+        }
+        if (!empty($keyword)) {
+            $where .= ' AND (w.out_trade_no LIKE ? OR w.real_name LIKE ? OR u.username LIKE ?)';
+            $params[] = "%{$keyword}%";
+            $params[] = "%{$keyword}%";
+            $params[] = "%{$keyword}%";
+        }
+
+        $rows = $db->getAll(
+            "SELECT w.id, w.out_trade_no, u.username, u.nickname, w.real_name, w.amount,
+                    CASE w.status WHEN 0 THEN '待审核' WHEN 1 THEN '已通过' WHEN 2 THEN '已拒绝' WHEN 3 THEN '已打款' ELSE '未知' END AS status_text,
+                    w.admin_note, w.created_at, w.review_time, w.pay_time
+             FROM `withdrawals` w LEFT JOIN `users` u ON w.user_id = u.id
+             WHERE {$where} ORDER BY w.id DESC",
+            $params
+        );
+
+        $this->exportCsv(
+            ['ID', '提现单号', '用户名', '用户昵称', '真实姓名', '金额', '状态', '管理员备注', '申请时间', '审核时间', '打款时间'],
+            $rows,
+            'withdrawals_' . date('YmdHis') . '.csv'
+        );
     }
 
     /**

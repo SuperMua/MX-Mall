@@ -4,9 +4,14 @@
         <div class="tabs" id="withdrawalTabs">
             <button class="tab-item active" onclick="filterWithdrawals(this, '')">全部</button>
             <button class="tab-item" onclick="filterWithdrawals(this, '0')">待审核</button>
-            <button class="tab-item" onclick="filterWithdrawals(this, '3')">已通过</button>
             <button class="tab-item" onclick="filterWithdrawals(this, '2')">已拒绝</button>
+            <button class="tab-item" onclick="filterWithdrawals(this, '3')">已打款</button>
         </div>
+    </div>
+    <div class="toolbar-right">
+        <button class="btn btn-secondary btn-sm" onclick="Admin.exportCsv('/withdrawals/export?status=' + (withdrawalsFilter || ''), 'withdrawals.csv')">
+            <i class="bi bi-download"></i> 导出CSV
+        </button>
     </div>
 </div>
 

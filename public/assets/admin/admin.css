@@ -670,6 +670,12 @@ a:hover { color: var(--primary-dark); }
 .data-table tbody tr:hover { background: #FAFBFC; }
 .data-table tbody tr:last-child td { border-bottom: none; }
 
+.data-table input[type="checkbox"] {
+    width: 16px; height: 16px;
+    cursor: pointer;
+    accent-color: var(--primary);
+}
+
 .data-table .thumb {
     width: 42px;
     height: 42px;
@@ -763,6 +769,19 @@ a:hover { color: var(--primary-dark); }
     color: #fff;
     border-color: transparent;
     box-shadow: 0 4px 14px rgba(0,200,151,0.25);
+}
+
+.btn-warning {
+    background: var(--warning);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 4px 14px rgba(247,183,49,0.25);
+}
+
+.btn-warning:hover {
+    background: #E5A91E;
+    box-shadow: 0 6px 18px rgba(247,183,49,0.35);
+    transform: translateY(-1px);
 }
 
 .btn-success:hover {

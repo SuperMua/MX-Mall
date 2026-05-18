@@ -11,6 +11,11 @@ const Admin = {
     // Current module
     currentModule: 'dashboard',
 
+    // Module cache: { moduleName: { html, timestamp } }
+    _moduleCache: {},
+    // Preload queue
+    _preloadQueue: new Set(),
+
     // Module titles
     moduleTitles: {
         dashboard: '仪表盘',
@@ -97,27 +102,41 @@ const Admin = {
         return this.request(url, { method: 'DELETE' });
     },
 
-    // ============ Module Loading ============
+    // ============ Module Loading (Optimized) ============
+    preloadModule(module) {
+        if (this._moduleCache[module] || this._preloadQueue.has(module)) return;
+        this._preloadQueue.add(module);
+
+        fetch('/admin/' + module, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function(response) {
+            if (response.ok) return response.text();
+            throw new Error('Preload failed');
+        }).then(function(html) {
+            Admin._moduleCache[module] = { html: html, ts: Date.now() };
+            Admin._preloadQueue.delete(module);
+        }).catch(function() {
+            Admin._preloadQueue.delete(module);
+        });
+    },
+
     async loadModule(module) {
+        // Skip if already on this module
+        if (this.currentModule === module && document.getElementById('content') && document.getElementById('content').dataset.module === module) {
+            return;
+        }
+
         this.currentModule = module;
         var content = document.getElementById('content');
         var title = document.getElementById('pageTitle');
 
-        // Update URL
         history.replaceState(null, '', '/admin/' + module);
 
         if (!content) return;
 
-        // Update title
+        // Update title instantly
         if (title) {
-            title.style.opacity = '0';
-            title.style.transform = 'translateY(-6px)';
-            setTimeout(function() {
-                title.textContent = Admin.moduleTitles[module] || module;
-                title.style.transition = 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)';
-                title.style.opacity = '1';
-                title.style.transform = 'translateY(0)';
-            }, 120);
+            title.textContent = Admin.moduleTitles[module] || module;
         }
 
         // Update active nav
@@ -128,7 +147,7 @@ const Admin = {
             }
         });
 
-        // Close mobile sidebar after navigation
+        // Close mobile sidebar
         if (window.innerWidth <= 768) {
             var sidebar = document.getElementById('sidebar');
             var overlay = document.getElementById('sidebarOverlay');
@@ -136,62 +155,63 @@ const Admin = {
             if (overlay) overlay.classList.remove('show');
         }
 
-        // Fade out then load
-        content.style.opacity = '0';
-        content.style.transform = 'translateY(8px)';
-        content.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
-
-        setTimeout(function() {
+        // Show skeleton instantly (no artificial delay)
+        var cached = this._moduleCache[module];
+        if (!cached) {
             content.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><span>加载中...</span></div>';
-            content.style.opacity = '1';
-            content.style.transform = 'translateY(0)';
-        }, 180);
+        }
+        content.dataset.module = module;
 
         try {
-            var response = await fetch('/admin/' + module, {
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            });
-            if (!response.ok) throw new Error('Module not found');
-            var html = await response.text();
-
-            content.style.opacity = '0';
-            content.style.transform = 'translateY(8px)';
-
-            setTimeout(function() {
-                content.innerHTML = html;
-                content.style.opacity = '1';
-                content.style.transform = 'translateY(0)';
-
-                // Re-execute scripts
-                var scripts = content.querySelectorAll('script');
-                scripts.forEach(function(oldScript) {
-                    var newScript = document.createElement('script');
-                    if (oldScript.src) {
-                        newScript.src = oldScript.src;
-                    } else {
-                        newScript.textContent = oldScript.textContent;
-                    }
-                    oldScript.parentNode.replaceChild(newScript, oldScript);
+            var html;
+            if (cached) {
+                html = cached.html;
+            } else {
+                var response = await fetch('/admin/' + module, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 });
+                if (!response.ok) throw new Error('Module not found');
+                html = await response.text();
+                this._moduleCache[module] = { html: html, ts: Date.now() };
+                this._preloadQueue.delete(module);
+            }
 
-                // Execute module init
-                var initFnName = 'init_' + module.replace(/-/g, '_');
-                if (typeof window[initFnName] === 'function') {
-                    try {
-                        var result = window[initFnName]();
-                        if (result && typeof result.catch === 'function') {
-                            result.catch(function(e) { console.error('Module init error:', e); });
-                        }
-                    } catch(e) { console.error('Module init error:', e); }
+            // Render with minimal transition
+            content.style.opacity = '0';
+            content.style.transition = 'opacity 0.1s ease';
+            content.innerHTML = html;
+            content.dataset.module = module;
+            content.style.opacity = '1';
+
+            // Re-execute scripts using DocumentFragment for speed
+            var scripts = content.querySelectorAll('script');
+            scripts.forEach(function(oldScript) {
+                var newScript = document.createElement('script');
+                if (oldScript.src) {
+                    newScript.src = oldScript.src;
+                } else {
+                    newScript.textContent = oldScript.textContent;
                 }
+                oldScript.parentNode.replaceChild(newScript, oldScript);
+            });
 
-                Admin.initContentAnimations();
-            }, 180);
+            // Execute module init
+            var initFnName = 'init_' + module.replace(/-/g, '_');
+            if (typeof window[initFnName] === 'function') {
+                try {
+                    var result = window[initFnName]();
+                    if (result && typeof result.catch === 'function') {
+                        result.catch(function(e) { console.error('Module init error:', e); });
+                    }
+                } catch(e) { console.error('Module init error:', e); }
+            }
+
+            Admin.initContentAnimations();
         } catch (error) {
             console.error('Module load error:', error);
             content.innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-triangle"></i><p>模块加载失败: ' + error.message + '</p></div>';
             content.style.opacity = '1';
-            content.style.transform = 'translateY(0)';
+            content.dataset.module = module;
         }
     },
 

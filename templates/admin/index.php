@@ -140,7 +140,21 @@
         </div>
     </div>
 
-    <script src="/assets/admin/admin.js?v=6"></script>
+    <script src="/assets/admin/admin.js?v=7"></script>
+    <script>
+        // Preload module on hover (fast navigation)
+        (function() {
+            var nav = document.querySelector('.sidebar-nav');
+            if (nav) {
+                nav.addEventListener('mouseover', function(e) {
+                    var item = e.target.closest('.nav-item');
+                    if (item && item.dataset.module && typeof Admin !== 'undefined') {
+                        Admin.preloadModule(item.dataset.module);
+                    }
+                });
+            }
+        })();
+    </script>
     <script>
         // Auth check
         if (!localStorage.getItem('admin_token')) {

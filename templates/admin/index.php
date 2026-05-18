@@ -72,13 +72,21 @@
                 </div>
             </nav>
             <div class="sidebar-footer">
-                <div class="user-mini" onclick="toggleAdminMenu()">
+                <div class="user-mini" onclick="toggleAdminMenu()" title="账号管理">
                     <div class="user-avatar" id="sidebarAvatar">A</div>
                     <div class="user-meta">
                         <div class="user-name" id="sidebarName">管理员</div>
                         <div class="user-role" id="sidebarRole">超级管理员</div>
                     </div>
-                    <i class="bi bi-three-dots" style="color:var(--text-muted);"></i>
+                    <i class="bi bi-chevron-up sidebar-chevron" id="sidebarChevron"></i>
+                </div>
+                <div class="sidebar-user-menu" id="sidebarUserMenu">
+                    <a href="javascript:void(0)" onclick="showChangePassword(); document.getElementById('sidebarUserMenu').classList.remove('show'); document.getElementById('sidebarChevron').classList.remove('rotated');">
+                        <i class="bi bi-key"></i> 修改密码
+                    </a>
+                    <a href="javascript:void(0)" onclick="Admin.logout()">
+                        <i class="bi bi-box-arrow-right"></i> 退出登录
+                    </a>
                 </div>
             </div>
         </aside>
@@ -161,20 +169,28 @@
             overlay.classList.toggle('show');
         }
 
-        // Admin dropdown menu
+        // Sidebar user menu toggle
         function toggleAdminMenu() {
             if (window.innerWidth <= 768) {
                 toggleSidebar();
                 return;
             }
-            var menu = document.getElementById('adminDropdownMenu');
+            var menu = document.getElementById('sidebarUserMenu');
+            var chevron = document.getElementById('sidebarChevron');
             menu.classList.toggle('show');
+            chevron.classList.toggle('rotated');
         }
 
         document.addEventListener('click', function(e) {
             var dropdown = document.getElementById('adminDropdown');
-            if (!dropdown.contains(e.target)) {
+            var sidebarMenu = document.getElementById('sidebarUserMenu');
+            var sidebarFooter = document.querySelector('.sidebar-footer');
+            if (dropdown && !dropdown.contains(e.target)) {
                 document.getElementById('adminDropdownMenu').classList.remove('show');
+            }
+            if (sidebarMenu && sidebarFooter && !sidebarFooter.contains(e.target)) {
+                sidebarMenu.classList.remove('show');
+                document.getElementById('sidebarChevron').classList.remove('rotated');
             }
         });
 

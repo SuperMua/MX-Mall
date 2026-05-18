@@ -259,6 +259,43 @@ a:hover { color: var(--primary-dark); }
     background: var(--bg-hover);
 }
 
+.sidebar-chevron {
+    transition: transform 0.3s var(--ease-out);
+    font-size: 12px;
+}
+.sidebar-chevron.rotated {
+    transform: rotate(180deg);
+}
+
+.sidebar-user-menu {
+    display: none;
+    padding: 4px;
+    margin-top: 4px;
+    background: var(--bg-white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    animation: dropdownIn 0.2s var(--spring);
+}
+.sidebar-user-menu.show { display: block; }
+.sidebar-user-menu a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: 13px;
+    transition: var(--transition-fast);
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+}
+.sidebar-user-menu a:hover {
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+.sidebar-user-menu a i { font-size: 15px; width: 18px; text-align: center; }
+
 .sidebar-footer .user-avatar {
     width: 36px;
     height: 36px;
@@ -303,17 +340,17 @@ a:hover { color: var(--primary-dark); }
 .topbar {
     height: var(--header-height);
     min-height: var(--header-height);
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border-bottom: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.5);
+    box-shadow: var(--shadow-sm);
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 28px;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    margin-left: 16px;
-    margin-right: 0;
+    border-radius: var(--radius-lg);
+    margin: 16px 0 0 16px;
     position: relative;
     z-index: 99;
 }

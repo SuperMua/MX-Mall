@@ -100,58 +100,72 @@ const Admin = {
     // ============ Module Loading ============
     async loadModule(module) {
         this.currentModule = module;
-        const content = document.getElementById('content');
-        const title = document.getElementById('pageTitle');
+        var content = document.getElementById('content');
+        var title = document.getElementById('pageTitle');
 
         // Update URL
         history.replaceState(null, '', '/admin.php?page=' + module);
 
         if (!content) return;
 
-        // Update title with animation
+        // Update title
         if (title) {
             title.style.opacity = '0';
-            title.style.transform = 'translateY(-5px)';
-            setTimeout(() => {
-                title.textContent = this.moduleTitles[module] || module;
-                title.style.transition = 'all 0.3s ease';
+            title.style.transform = 'translateY(-6px)';
+            setTimeout(function() {
+                title.textContent = Admin.moduleTitles[module] || module;
+                title.style.transition = 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)';
                 title.style.opacity = '1';
                 title.style.transform = 'translateY(0)';
-            }, 150);
+            }, 120);
         }
 
-        // Update active nav with animation
-        document.querySelectorAll('.nav-item').forEach(item => {
+        // Update active nav
+        document.querySelectorAll('.nav-item').forEach(function(item) {
             item.classList.remove('active');
             if (item.dataset.module === module) {
                 item.classList.add('active');
             }
         });
 
-        // Show loading with fade
+        // Close mobile sidebar after navigation
+        if (window.innerWidth <= 768) {
+            var sidebar = document.getElementById('sidebar');
+            var overlay = document.getElementById('sidebarOverlay');
+            if (sidebar) sidebar.classList.remove('mobile-open');
+            if (overlay) overlay.classList.remove('show');
+        }
+
+        // Fade out then load
         content.style.opacity = '0';
-        setTimeout(() => {
+        content.style.transform = 'translateY(8px)';
+        content.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+
+        setTimeout(function() {
             content.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><span>加载中...</span></div>';
-            content.style.transition = 'opacity 0.3s ease';
             content.style.opacity = '1';
-        }, 150);
+            content.style.transform = 'translateY(0)';
+        }, 180);
 
         try {
-            const response = await fetch('/admin.php?page=' + module, {
+            var response = await fetch('/admin.php?page=' + module, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
             if (!response.ok) throw new Error('Module not found');
-            const html = await response.text();
+            var html = await response.text();
 
             content.style.opacity = '0';
-            setTimeout(() => {
+            content.style.transform = 'translateY(8px)';
+
+            setTimeout(function() {
                 content.innerHTML = html;
                 content.style.opacity = '1';
+                content.style.transform = 'translateY(0)';
 
-                // Extract and execute all <script> tags
-                const scripts = content.querySelectorAll('script');
-                scripts.forEach(oldScript => {
-                    const newScript = document.createElement('script');
+                // Re-execute scripts
+                var scripts = content.querySelectorAll('script');
+                scripts.forEach(function(oldScript) {
+                    var newScript = document.createElement('script');
                     if (oldScript.src) {
                         newScript.src = oldScript.src;
                     } else {
@@ -160,22 +174,24 @@ const Admin = {
                     oldScript.parentNode.replaceChild(newScript, oldScript);
                 });
 
-                // Execute module init function
-                const initFnName = 'init_' + module.replace('-', '_');
+                // Execute module init
+                var initFnName = 'init_' + module.replace(/-/g, '_');
                 if (typeof window[initFnName] === 'function') {
-                    var result = window[initFnName]();
-                    if (result && typeof result.catch === 'function') {
-                        result.catch(function(e) { console.error('Module init error:', e); });
-                    }
+                    try {
+                        var result = window[initFnName]();
+                        if (result && typeof result.catch === 'function') {
+                            result.catch(function(e) { console.error('Module init error:', e); });
+                        }
+                    } catch(e) { console.error('Module init error:', e); }
                 }
 
-                // Initialize animations for new content
-                this.initContentAnimations();
-            }, 150);
+                Admin.initContentAnimations();
+            }, 180);
         } catch (error) {
             console.error('Module load error:', error);
             content.innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-triangle"></i><p>模块加载失败: ' + error.message + '</p></div>';
             content.style.opacity = '1';
+            content.style.transform = 'translateY(0)';
         }
     },
 

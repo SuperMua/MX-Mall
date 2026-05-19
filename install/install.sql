@@ -62,6 +62,7 @@ CREATE TABLE `users` (
     `balance` DECIMAL(10,2) DEFAULT 0.00 COMMENT '用户余额',
     `frozen_balance` DECIMAL(10,2) DEFAULT 0.00 COMMENT '冻结余额',
     `group_id` INT DEFAULT 0 COMMENT '用户分组ID',
+    `referrer_id` INT DEFAULT 0 COMMENT '推荐人用户ID',
     `is_merchant` TINYINT(1) DEFAULT 0 COMMENT '是否商户: 0否 1是',
     `merchant_status` TINYINT(1) DEFAULT 0 COMMENT '商户审核: 0未申请 1待审核 2已通过 3已拒绝',
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间'

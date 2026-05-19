@@ -373,6 +373,12 @@ if (!file_exists($lockFile)) {
 
     // Init
     document.addEventListener('DOMContentLoaded', () => {
+        // 处理邀请链接参数 ref=用户ID
+        var urlParams = new URLSearchParams(window.location.search);
+        var refId = urlParams.get('ref');
+        if (refId) {
+            localStorage.setItem('invite_ref', refId);
+        }
         loadProducts();
         loadSiteConfig();
     });

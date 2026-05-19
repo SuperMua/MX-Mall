@@ -525,6 +525,32 @@ document.getElementById('wx-oauth-error').style.display = 'flex';
 </script>
 <?php endif; ?>
 
+<!-- MX-Mall Floating Share Button -->
+<div id="cp-float-share" onclick="openShareModal()" title="分享给好友代付">
+    <i class="bi bi-share"></i>
+    <span>代付</span>
+</div>
+<style>
+#cp-float-share {
+    position: fixed; bottom: 100px; right: 16px; z-index: 9990;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, #6C5CE7, #A29BFE);
+    color: #fff; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    box-shadow: 0 6px 24px rgba(108,92,231,0.4);
+    cursor: pointer; font-size: 12px; gap: 2px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none; -webkit-user-select: none;
+}
+#cp-float-share:active {
+    transform: scale(0.92);
+    box-shadow: 0 4px 16px rgba(108,92,231,0.3);
+}
+#cp-float-share i { font-size: 18px; }
+#cp-float-share span { font-size: 10px; font-weight: 600; letter-spacing: 1px; }
+</style>
+
 <!-- MX-Mall Share Modal -->
 <div id="cp-share-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;" onclick="this.style.display='none'">
     <div style="width:85%;max-width:340px;background:#fff;border-radius:16px;padding:28px 24px;text-align:center;" onclick="event.stopPropagation()">

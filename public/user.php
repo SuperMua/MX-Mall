@@ -886,12 +886,45 @@ if (!file_exists($lockFile)) {
                     </div>
                 </div>
                 <div class="menu-group">
+                    <div class="menu-item" onclick="openInviteModal()">
+                        <div class="menu-icon" style="background:rgba(239,68,68,0.1);color:#ef4444;">&#128150;</div>
+                        <span class="menu-text">邀请好友</span>
+                        <span class="menu-arrow">&#8250;</span>
+                    </div>
                     <div class="menu-item" onclick="NexusApp.go('/user-groups.php')">
                         <div class="menu-icon" style="background:rgba(16,185,129,0.1);color:var(--success);">&#127942;</div>
                         <span class="menu-text">用户身份</span>
                         <span class="menu-arrow">&#8250;</span>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 邀请好友弹窗 ===== -->
+    <div class="modal-overlay" id="invite-modal" onclick="closeInviteModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-title">邀请好友</div>
+                <div class="modal-close" onclick="closeInviteModal()">&#10005;</div>
+            </div>
+            <div style="text-align:center;padding:20px 0;">
+                <div style="font-size:56px;margin-bottom:12px;">&#128150;</div>
+                <div style="font-size:15px;font-weight:600;color:#333;margin-bottom:4px;">分享给你的好友</div>
+                <div style="font-size:12px;color:#999;margin-bottom:8px;">好友通过你的链接注册后，你可获得佣金奖励</div>
+                <div id="invite-commission-info" style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:8px;padding:8px 14px;display:inline-block;font-size:13px;color:#92400e;margin-bottom:16px;">
+                    分佣比例：加载中...
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">你的邀请链接</label>
+                <div style="display:flex;gap:6px;">
+                    <input type="text" class="form-input" id="invite-url" readonly style="font-size:12px;flex:1;" onclick="this.select()">
+                    <button class="btn btn-primary" style="flex-shrink:0;white-space:nowrap;font-size:13px;padding:0 16px;height:44px;border-radius:10px;border:none;background:var(--primary);color:#fff;cursor:pointer;" onclick="copyInviteLink()">复制链接</button>
+                </div>
+            </div>
+            <div style="text-align:center;margin-top:4px;">
+                <span id="invite-copy-msg" style="font-size:12px;color:var(--success);display:none;">已复制到剪贴板</span>
             </div>
         </div>
     </div>
@@ -1141,10 +1174,14 @@ if (!file_exists($lockFile)) {
         btn.textContent = '注册中...';
 
         try {
-            const res = await NexusApp.post('/user/register', {
-                username,
-                password
-            });
+            var body = { username: username, password: password };
+            // 传递邀请人ID
+            var inviteRef = localStorage.getItem('invite_ref');
+            if (inviteRef) {
+                body.ref = parseInt(inviteRef) || 0;
+                localStorage.removeItem('invite_ref');
+            }
+            const res = await NexusApp.post('/user/register', body);
             if (res.code === 0) {
                 NexusApp.toast(res.msg || '注册成功，请等待管理员审核', 'success');
                 switchTab('login');
@@ -1405,6 +1442,80 @@ if (!file_exists($lockFile)) {
         }
     }
 
+    // ===== Invite Modal =====
+    function openInviteModal() {
+        var user = getUserInfo();
+        if (user) {
+            var refUrl = window.location.origin + '/?ref=' + user.id;
+            document.getElementById('invite-url').value = refUrl;
+            if (user.group_commission_rate && parseFloat(user.group_commission_rate) > 0) {
+                document.getElementById('invite-commission-info').textContent = '分佣比例：' + parseFloat(user.group_commission_rate).toFixed(1) + '%';
+            } else {
+                document.getElementById('invite-commission-info').textContent = '暂无分佣奖励';
+            }
+        } else {
+            document.getElementById('invite-url').value = '请先登录';
+            document.getElementById('invite-commission-info').textContent = '分佣比例：加载中...';
+        }
+        document.getElementById('invite-modal').classList.add('active');
+        // Refresh from API for latest rate
+        if (getToken()) {
+            NexusApp.get('/user/profile').then(function(res) {
+                if (res.code === 0 && res.data) {
+                    setUserInfo(res.data);
+                    var refUrl2 = window.location.origin + '/?ref=' + res.data.id;
+                    document.getElementById('invite-url').value = refUrl2;
+                    if (res.data.group_commission_rate && parseFloat(res.data.group_commission_rate) > 0) {
+                        document.getElementById('invite-commission-info').textContent = '分佣比例：' + parseFloat(res.data.group_commission_rate).toFixed(1) + '%';
+                    } else {
+                        document.getElementById('invite-commission-info').textContent = '暂无分佣奖励';
+                    }
+                }
+            }).catch(function() {});
+        }
+    }
+
+    function closeInviteModal() {
+        document.getElementById('invite-modal').classList.remove('active');
+        document.getElementById('invite-copy-msg').style.display = 'none';
+    }
+
+    function copyInviteLink() {
+        var url = document.getElementById('invite-url').value;
+        if (!url || url === '请先登录') return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(function() {
+                document.getElementById('invite-copy-msg').style.display = 'block';
+                setTimeout(function() {
+                    document.getElementById('invite-copy-msg').style.display = 'none';
+                }, 2000);
+            }).catch(function() {
+                fallbackCopyInvite(url);
+            });
+        } else {
+            fallbackCopyInvite(url);
+        }
+    }
+
+    function fallbackCopyInvite(text) {
+        var textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            document.getElementById('invite-copy-msg').style.display = 'block';
+            setTimeout(function() {
+                document.getElementById('invite-copy-msg').style.display = 'none';
+            }, 2000);
+        } catch (e) {
+            NexusApp.toast('复制失败，请手动复制', 'error');
+        }
+        document.body.removeChild(textarea);
+    }
+
     // ===== Load Profile from API =====
     async function loadProfile() {
         const token = getToken();
@@ -1434,7 +1545,15 @@ if (!file_exists($lockFile)) {
     }
 
     // ===== Init =====
-    document.addEventListener('DOMContentLoaded', loadProfile);
+    document.addEventListener('DOMContentLoaded', function() {
+        // 处理邀请链接参数 ref=用户ID
+        var urlParams = new URLSearchParams(window.location.search);
+        var refId = urlParams.get('ref');
+        if (refId) {
+            localStorage.setItem('invite_ref', refId);
+        }
+        loadProfile();
+    });
 </script>
 </body>
 </html>

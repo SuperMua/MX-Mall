@@ -16,6 +16,7 @@ class UserController extends BaseController
     {
         $username = trim($this->input('username', ''));
         $password = $this->input('password', '');
+        $ref = intval($this->input('ref', '0'));
 
         if (empty($username) || mb_strlen($username) < 2 || mb_strlen($username) > 20) {
             return $this->jsonError('用户名长度2-20个字符');
@@ -29,6 +30,12 @@ class UserController extends BaseController
         $exists = $db->getRow("SELECT id FROM users WHERE username = ?", [$username]);
         if ($exists) {
             return $this->jsonError('该用户名已被注册');
+        }
+
+        // 验证推荐人
+        if ($ref > 0) {
+            $referrer = $db->getRow("SELECT id FROM users WHERE id = ? AND status = 1", [$ref]);
+            if (!$referrer) $ref = 0;
         }
 
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
@@ -46,6 +53,7 @@ class UserController extends BaseController
             'balance'        => 0.00,
             'frozen_balance' => 0.00,
             'group_id'       => $groupId,
+            'referrer_id'    => $ref,
             'is_merchant'    => 0,
             'merchant_status'=> 0,
             'created_at'     => date('Y-m-d H:i:s'),

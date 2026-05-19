@@ -553,12 +553,26 @@ document.getElementById('wx-oauth-error').style.display = 'flex';
 
 <!-- MX-Mall Share Modal -->
 <div id="cp-share-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;" onclick="this.style.display='none'">
-    <div style="width:85%;max-width:340px;background:#fff;border-radius:16px;padding:28px 24px;text-align:center;" onclick="event.stopPropagation()">
-        <div style="font-size:16px;font-weight:600;color:#333;margin-bottom:12px;">分享给好友代付</div>
-        <div style="font-size:13px;color:#999;line-height:1.6;margin-bottom:20px;">复制此链接发送给好友</div>
-        <div id="cp-share-url" style="background:#f5f5f5;border-radius:8px;padding:10px 12px;font-size:12px;color:#666;word-break:break-all;margin-bottom:16px;text-align:left;max-height:60px;overflow-y:auto;"></div>
-        <button onclick="copyShareLink()" style="width:100%;height:42px;border-radius:21px;background:linear-gradient(135deg,#6c5ce7,#00cec9);color:#fff;font-size:15px;font-weight:600;border:none;cursor:pointer;">复制链接</button>
-        <div onclick="document.getElementById('cp-share-modal').style.display='none'" style="margin-top:14px;font-size:13px;color:#bbb;cursor:pointer;">关闭</div>
+    <div style="width:88%;max-width:360px;background:#fff;border-radius:16px;padding:0;text-align:center;overflow:hidden;" onclick="event.stopPropagation()">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 0;">
+            <div style="font-size:17px;font-weight:650;color:#333;">分享给好友代付</div>
+            <div onclick="document.getElementById('cp-share-modal').style.display='none'" style="font-size:22px;color:#bbb;cursor:pointer;line-height:1;">&times;</div>
+        </div>
+        <div style="padding:4px 20px 16px;">
+            <!-- Card Preview -->
+            <div style="background:#f8f9fa;border-radius:6px;overflow:hidden;text-align:left;margin:12px 0 16px;border:1px solid #eee;">
+                <div style="display:flex;align-items:center;padding:12px;">
+                    <div style="flex:1;min-width:0;">
+                        <div id="cp-card-title" style="font-size:14px;font-weight:600;color:#333;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:4px;"></div>
+                        <div style="font-size:11px;color:#999;">代付订单 · 点击链接即可支付</div>
+                    </div>
+                    <img id="cp-card-img" src="" alt="" style="width:48px;height:48px;border-radius:6px;object-fit:cover;flex-shrink:0;margin-left:10px;" onerror="this.style.display='none'">
+                </div>
+            </div>
+            <div style="font-size:12px;color:#999;margin-bottom:12px;">复制链接发送给微信好友，对方打开即可代付</div>
+            <div id="cp-share-url" style="background:#f5f5f5;border-radius:8px;padding:10px 12px;font-size:12px;color:#666;word-break:break-all;margin-bottom:12px;text-align:left;max-height:48px;overflow-y:auto;"></div>
+            <button onclick="copyShareLink()" style="width:100%;height:44px;border-radius:22px;background:linear-gradient(135deg,#6c5ce7,#00cec9);color:#fff;font-size:15px;font-weight:600;border:none;cursor:pointer;">复制链接</button>
+        </div>
     </div>
 </div>
 
@@ -581,6 +595,12 @@ window.__wxOauthMode = '<?php echo htmlspecialchars($wxOauthMode); ?>';
 window.__wxOauthUrl = '<?php echo htmlspecialchars($wxOauthUrl); ?>';
 window.__autoPay = <?php echo $auto_pay ? 'true' : 'false'; ?>;
 window.__oauthCallback = <?php echo !empty($oauthCallback) ? 'true' : 'false'; ?>;
+
+// Share card data
+window.__shareTitle = '<?php echo addslashes($share_title); ?>';
+window.__shareDesc = '<?php echo addslashes($share_desc); ?>';
+window.__shareImg = '<?php echo addslashes($share_img); ?>';
+window.__shareUrl = '<?php echo addslashes($share_url); ?>';
 
 // =============================================
 // Override payment buttons to use MX-Mall payment flow
@@ -687,32 +707,72 @@ window.__oauthCallback = <?php echo !empty($oauthCallback) ? 'true' : 'false'; ?
 // =============================================
 // Share Functions
 // =============================================
-function getShareUrl() {
-    return window.location.href;
+function getShareData() {
+    return {
+        title: window.__shareTitle || document.title,
+        desc: window.__shareDesc || '',
+        link: window.__shareUrl || window.location.href,
+        imgUrl: window.__shareImg || ''
+    };
 }
 
 function openShareModal() {
-    var url = getShareUrl();
-    document.getElementById('cp-share-url').textContent = url;
+    var data = getShareData();
+
+    // 微信内：调用 WeixinJSBridge 直接唤起分享面板（卡片形式）
+    if (window.__isWechat && typeof WeixinJSBridge !== 'undefined') {
+        WeixinJSBridge.invoke('shareAppMessage', {
+            title: data.title,
+            desc: data.desc,
+            link: data.link,
+            img_url: data.imgUrl,
+            img_width: '200',
+            img_height: '200'
+        }, function(res) {
+            // 分享完成或取消，无需额外处理
+        });
+        return;
+    }
+
+    // 非微信或 JS Bridge 未就绪：弹窗展示卡片预览 + 复制链接
+    document.getElementById('cp-share-url').textContent = data.link;
+    document.getElementById('cp-card-title').textContent = data.title;
+    var imgEl = document.getElementById('cp-card-img');
+    if (data.imgUrl) {
+        imgEl.src = data.imgUrl;
+        imgEl.style.display = '';
+    } else {
+        imgEl.style.display = 'none';
+    }
     document.getElementById('cp-share-modal').style.display = 'flex';
 }
 
 function copyShareLink() {
     var url = document.getElementById('cp-share-url').textContent;
+    if (!url) return;
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(url).then(function() {
-            if (typeof NexusApp !== 'undefined') {
-                NexusApp.toast('链接已复制', 'success');
-            } else {
-                alert('链接已复制');
-            }
-            document.getElementById('cp-share-modal').style.display = 'none';
+            showCopySuccess();
         }).catch(function() {
             fallbackCopy(url);
         });
     } else {
         fallbackCopy(url);
     }
+}
+
+function showCopySuccess() {
+    // 反馈动画：按钮变绿
+    var btn = document.querySelector('#cp-share-modal button');
+    var originalText = btn.textContent;
+    var originalBg = btn.style.background;
+    btn.textContent = '已复制';
+    btn.style.background = 'linear-gradient(135deg,#10b981,#34d399)';
+    setTimeout(function() {
+        btn.textContent = originalText;
+        btn.style.background = originalBg;
+        document.getElementById('cp-share-modal').style.display = 'none';
+    }, 1200);
 }
 
 function fallbackCopy(text) {
@@ -724,21 +784,33 @@ function fallbackCopy(text) {
     textarea.select();
     try {
         document.execCommand('copy');
-        if (typeof NexusApp !== 'undefined') {
-            NexusApp.toast('链接已复制', 'success');
-        } else {
-            alert('链接已复制');
-        }
-        document.getElementById('cp-share-modal').style.display = 'none';
+        showCopySuccess();
     } catch (e) {
-        if (typeof NexusApp !== 'undefined') {
-            NexusApp.toast('复制失败，请手动复制', 'error');
-        } else {
-            alert('复制失败，请手动复制');
-        }
+        // 最后兜底：全选文本让用户手动复制
+        document.getElementById('cp-share-url').select();
     }
     document.body.removeChild(textarea);
 }
+
+// 提前注册 WeixinJSBridge 分享数据（兼容旧版微信分享菜单）
+document.addEventListener('WeixinJSBridgeReady', function() {
+    var data = getShareData();
+    WeixinJSBridge.on('menu:share:appmessage', function(argv) {
+        WeixinJSBridge.invoke('sendAppMessage', {
+            title: data.title,
+            desc: data.desc,
+            link: data.link,
+            img_url: data.imgUrl
+        }, function(res) {});
+    });
+    WeixinJSBridge.on('menu:share:timeline', function(argv) {
+        WeixinJSBridge.invoke('shareTimeline', {
+            title: data.title,
+            link: data.link,
+            img_url: data.imgUrl
+        }, function(res) {});
+    });
+});
 
 // =============================================
 // Fallback payment submit (if CashierApp not loaded)
